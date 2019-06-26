@@ -1,0 +1,56 @@
+pipeline {
+ agent any
+ 
+
+ parameters {
+			choice choices: ['master', 'dev'], description: 'git branchname', name: 'gitbranch'
+		}
+ stages {
+  stage('Checkout the Code') {
+   steps {
+    git credentialsId: 'github', url: 'https://github.com/satishrawat/jenkins-ci-dotnet.git', branch: '$gitbranch'
+   }
+  }
+  stage('Restore Dependencies Using Nuget') {
+   steps {
+    bat "nuget restore src/MyWindowsService/"
+   }
+  }
+  
+  
+        
+  stage('Compile and Build Using MSbuild') {
+   
+   steps {
+    bat "\"${tool 'msbuild'}\" src/MyWindowsService/MyWindowsService/MyWindowsService.csproj /t:Rebuild /p:Configuration=Release"
+   }
+  }
+  
+  stage('Create Nuget pkg') {
+   steps {
+    bat "nuget pack src/MyWindowsService/MyWindowsService/MyWindowsService.csproj -properties Configuration=Release"
+   }
+  }
+  stage('push to Artifactory - Nexus') {
+   steps {
+    
+    bat "nuget push -Source http://localhost:8081/repository/nuget-hosted/ -ApiKey 8077caed-0032-3e41-bbd3-2dd3ab182053 *.nupkg"
+   }
+  }
+ 
+  }
+  
+   
+    post {
+        success {
+            mail to:"supprtguuy@gmail.com", subject:"SUCCESS: ${currentBuild.fullDisplayName}", body: "Yay, we passed ${env.BUILD_URL} ."
+        }
+        failure {
+            mail to:"supprtguuy@gmail.com", subject:"FAILURE: ${currentBuild.fullDisplayName}", body: "Oops, we failed ${env.BUILD_URL} ."
+        }
+		}    
+	   
+	   
+    }
+ 
+        
